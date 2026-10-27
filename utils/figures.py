@@ -303,7 +303,7 @@ def design(run: Run, out=None, *, field="material", size=(1200, 950),
     return _save(fig, out)
 
 
-def boundary_conditions(example, out=None, *, size=(1400, 1050), zoom=0.82):
+def boundary_conditions(out=None, *, size=(1400, 1050), zoom=0.82):
     """Loads and supports on the meshed design domain, drawn by PyTO.
 
     A plotter is supplied so the render is full size rather than PyTO's default
@@ -311,16 +311,13 @@ def boundary_conditions(example, out=None, *, size=(1400, 1050), zoom=0.82):
     the view and then applies zoom(1.25), which crops the load arrow and the
     clamped face. zoom < 1 here undoes that.
     """
-    from ExamplesPureStructural import (                       # type: ignore
-        MMTOExamplesPureStructural, getMMTOProblemPureStructural)
+    from ExamplesPureStructural import getMMTOProblemPureStructural
     import hex_structural_fea                                  # type: ignore
     import linear_solvers                                      # type: ignore
     import deflation                                           # type: ignore
     import pyvista as pv
 
-    ex = (example if not isinstance(example, str)
-          else MMTOExamplesPureStructural[example])
-    mesh, mat_prop, bc, body_force, to_params, _ = getMMTOProblemPureStructural(ex)
+    mesh, mat_prop, bc, body_force, to_params, _ = getMMTOProblemPureStructural()
 
     # plot_mesh never solves, so the solver choice does not matter here
     fe = hex_structural_fea.HexStructuralFEA(

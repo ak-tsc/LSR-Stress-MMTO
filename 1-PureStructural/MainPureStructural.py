@@ -45,10 +45,8 @@ from PyTOImports import (
     increment_SIMP_THERMAL_PENALTY,
 )
 from ExamplesPureStructural import (
-    MMTOExamplesPureStructural,
     getMMTOProblemPureStructural,
-    material_colors,
-)
+    )
 from materialEncoder import MaterialEncoder 
 from SensitivitiesPureStructural import (
     compute_mmto_objective_and_gradient,
@@ -87,7 +85,6 @@ def get_beta_schedule(scheme: BetaScheduleScheme):
             "beta_start_iter": 50,
         }
     if scheme == BetaScheduleScheme.PAPER_BM1:
-        # Banh L-bracket benchmark: beta_max 16, per Table 2.
         return {
             "beta_init": 1.0,
             "beta_max": 16,
@@ -118,8 +115,6 @@ def update_beta(beta_proj, mmaIterations, beta_schedule):
     return min(beta_proj * beta_schedule["beta_factor"], beta_schedule["beta_max"]), True
 
 def run_topopt(
-    to_problem,
-    # ---- per-run sweep overrides (None => use the example's values) ----
     n_dof_desired=None,
     relative_filter_radius=None,
     material_filter_radius=None,
@@ -188,13 +183,12 @@ def run_topopt(
 
     history = init_run_history()
     mesh_structural, mat_prop_struct, bc_struct, elem_body_force, to_params, vae_params = (
-        getMMTOProblemPureStructural(to_problem, nDOFDesired=n_dof_desired)
+        getMMTOProblemPureStructural(nDOFDesired=n_dof_desired)
     )
-
-    # ---- per-run sweep overrides (None => keep the example's value) ---------
-     # Must be set AFTER the example
-    # (which assigns these) and BEFORE the filters are built at line ~285.
-    # NOTE: MaterialFilterRadius=None makes r_z SILENTLY FOLLOW r_rho
+# ---- Optional runtime overrides ----------------------------------------
+# Must be applied after getMMTOProblemPureStructural()
+# populates the default parameters.
+# NOTE: MaterialFilterRadius=None makes r_z SILENTLY FOLLOW r_rho
     if relative_filter_radius is not None:
         to_params.RelativeFilterRadius = relative_filter_radius
     if material_filter_radius is not None:
@@ -205,7 +199,7 @@ def run_topopt(
     print(f"[SWEEP] nDOFDesired={to_params.nDOFDesired}  "
           f"RelativeFilterRadius={to_params.RelativeFilterRadius}  "
           f"MaterialFilterRadius={to_params.MaterialFilterRadius}  "
-          f"P={pnorm_exponent if pnorm_exponent is not None else '(example default)'}")
+          f"P={pnorm_exponent if pnorm_exponent is not None else '(problem default)'}")
     # ------------------------------------------------------------------------
 
     if to_params.MaterialsExcelFile is None:
@@ -760,7 +754,7 @@ def run_topopt(
     except Exception:
         pass
     run_config = _run_io.build_run_config(
-        example_name=getattr(to_problem, "name", str(to_problem)),
+        example_name="UserProblem",
         run_args=_run_args, to_params=to_params, vae_params=vae_params,
         beta_schedule=beta_schedule, mesh=mesh_structural, bc=bc_struct,
         mat_encoder=matEncoder, z_real_points=zRealPoints,
@@ -794,58 +788,5 @@ def run_topopt(
         snap_to_real_material=snap_to_real_material,
         save_dir=save_dir,
         run_config=run_config,
-        example_name=getattr(to_problem, "name", str(to_problem)),
-    )
-
-if __name__ == "__main__":
-    # L-bracket benchmark, the r_rho = r_z = 3.5 cell.
-    # Expect Phi_p 2.5377, grey 2.47%, VF 0.1472 / 0.1472 / 0.0993.
-    save_dir = start_run(name="LBracket_BM1_rel3p5_rz3p5")
-    to_problem = MMTOExamplesPureStructural.LBracketTopLoad_Stress_BM1
-    run_topopt(
-        to_problem=to_problem,
-        save_dir=save_dir,
-
-        # grid and filters
-        relative_filter_radius=3.5,
-        material_filter_radius=3.5,          # pin it: None makes r_z follow r_rho
-        maxIterations=300,
-        rel_conv_tol=1e-7,
-        timeLimit=36000,
-
-        # VAE
-        use_pretrained_vae=True,
-        saveNet="./1-PureStructural/MaterialDataPureStructural/BM1_3Mats_2Attr.nt",
-        z0_init_method=Z0InitMethod.ORIGIN,
-        snap_to_real_material=False,
-
-        # material model
-        use_constant_poissons_ratio=False,
-        constant_poissons_ratio=0.3,
-        use_continuation=False,
-
-        # distance penalty
-        use_penalization=True,
-        gamma_init=1e-3,
-        gamma_factor=1.1,
-        gamma_max=10,
-        penalty_start_iter=0,
-        use_dynamic_gamma_scheduling=True,
-        distance_penalty_disable_after_iter=250,   # inert while dynamic scheduling is on
-
-        # latent smoothing
-        use_z_smoothing=True,
-        z_smoothing_weight=1e-4,
-        z_smoothing_disable_after_iter=250,
-
-        # Heaviside projection
-        use_heaviside_projection=True,
-        eta_proj=0.5,
-        beta_schedule_scheme=BetaScheduleScheme.PAPER_BM1,   # beta_max 16
-
-        # output
-        binarize_topology=True,
-        plot_progress=False,
-        plot_bcs=False,
-        verbose=True,
+        example_name="UserProblem",
     )

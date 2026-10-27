@@ -31,15 +31,15 @@ _MESH_CACHE: dict = {}
 
 def _import_examples():
     try:
-        from ExamplesPureStructural import (  # type: ignore
-            MMTOExamplesPureStructural, getMMTOProblemPureStructural)
+        from ExamplesPureStructural import getMMTOProblemPureStructural
     except ImportError as e:
         raise RenderError(
             "could not import ExamplesPureStructural, which needs PyTO on "
             "sys.path. Call project_paths.bootstrap() first, and check that "
-            f"PyTO is cloned beside this repository. Original error: {e}") from e
-    return MMTOExamplesPureStructural, getMMTOProblemPureStructural
+            f"PyTO is cloned beside this repository. Original error: {e}"
+        ) from e
 
+    return getMMTOProblemPureStructural
 
 def mesh_for(run: Run):
     """The voxel mesh this run used, rebuilt and cached.
@@ -47,20 +47,14 @@ def mesh_for(run: Run):
     nDOFDesired comes from the run's own config, so the rebuild matches the grid
     the run solved on rather than the example's current default.
     """
-    Examples, getProblem = _import_examples()
+    getProblem = _import_examples()
 
     ndof = (run.config.get("topopt_params") or {}).get("nDOFDesired")
-    key = (run.example, ndof)
+    key = ndof
 
     if key not in _MESH_CACHE:
-        try:
-            ex = Examples[run.example]
-        except KeyError as e:
-            raise RenderError(
-                f"{run.descriptor}: example {run.example!r} is not in "
-                f"MMTOExamplesPureStructural") from e
         kw = {} if ndof is None else {"nDOFDesired": ndof}
-        _MESH_CACHE[key] = getProblem(ex, **kw)[0]
+        _MESH_CACHE[key] = getProblem(**kw)[0]
 
     mesh = _MESH_CACHE[key]
     if int(mesh.num_elems) != run.n_elems:
