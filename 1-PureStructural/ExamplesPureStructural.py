@@ -6,7 +6,8 @@ common_path = os.path.join(os.path.dirname(__file__), '..', '0-Common')
 sys.path.insert(0, os.path.abspath(common_path))
 from materialColors import material_colors # type: ignore[reportMissingImports]
 # Now you can import normally
-from StructuralFEAExamples import getStructuralFEAProblem
+from ProblemConfig import *
+
 from PyTOImports import  TO_QOI, find_elements_with_fixedDOF # type: ignore
 from mmto_common import MMTOParams # type: ignore
 from dataclasses import dataclass, field
@@ -24,66 +25,29 @@ class VAEParams: #default VAE parameters
 def getMMTOProblemPureStructural(nDOFDesired = None, **kwargs):
 
     to_params = MMTOParams()
-    topopt_material_model._PNORM_EXPONENT = 6   # default; Xie branches override to 10
     vae_params = VAEParams()
-    kwargs['total_load'] = 1000.0
-    
-    to_params.Comment = (
-    "User-defined STL optimization problem"
-    )
+    topopt_material_model._PNORM_EXPONENT = PNORM_EXPONENT
 
+    to_params.Comment = COMMENT
+    to_params.RelativeFilterRadius = RELATIVE_FILTER_RADIUS
+  
+    to_params.nDOFDesired = (
+        NDOF_DESIRED if nDOFDesired is None else nDOFDesired
+    )
+    to_params.MaterialsExcelFile = MATERIALS_EXCEL_FILE
+    to_params.Objective = OBJECTIVE
+    to_params.Constraints = CONSTRAINTS
     to_params.ExtrudeZ = False
 
-    to_params.RelativeFilterRadius = 5.0
+    vae_params.latentDim = VAE_LATENT_DIM
+    vae_params.learningRate = VAE_LEARNING_RATE
+    vae_params.vae_hiddenDim = VAE_HIDDEN_DIM
+    vae_params.maxAttributeErrorPercent = VAE_MAX_ATTRIBUTE_ERROR_PERCENT
+    vae_params.klFactor = VAE_KL_FACTOR
+    vae_params.numEpochs = VAE_NUM_EPOCHS
 
-    to_params.nDOFDesired = (
-        12000 if nDOFDesired is None else nDOFDesired
-    )
+    mesh, mat_prop, bc, elem_body_force = createStructuralProblem()
 
-    to_params.MaterialsExcelFile = (
-        './1-PureStructural/'
-        'MaterialDataPureStructural/'
-        '6Materials_AF_3Attr.xlsx'
-    )
-
-    #
-    # Objective
-    #
-    to_params.Objective = (
-        TO_QOI.COMPLIANCE,
-        None
-    )
-    # to_params.Objective = (
-    #     TO_QOI.PNORM_STRESS,
-    #     None
-    # )
-
-    #
-    # Mass constraint
-    #
-    to_params.Constraints = [
-        (
-            TO_QOI.MASS,
-            None,
-            1.75e6
-        )
-    ]
-
-    vae_params.latentDim = 2
-    vae_params.learningRate = 1e-4
-    vae_params.vae_hiddenDim = 50
-    vae_params.maxAttributeErrorPercent = 0.1
-    vae_params.klFactor = 1e-4
-    vae_params.numEpochs = 100000
-
-
-    mesh, mat_prop, bc, elem_body_force = getStructuralFEAProblem(
-        nDOFDesired=to_params.nDOFDesired,
-        **kwargs
-    )
-
-
-    # Add  elements to keep
     to_params.ElemsToKeep  = None # default value
 
     # Here we add additional parameters specific to the optimization problem
